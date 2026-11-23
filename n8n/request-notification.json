@@ -1,0 +1,82 @@
+{
+  "name": "LendLoop - Request Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lendloop-loan-events",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-loan-events",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst secret = $env.LENDLOOP_WEBHOOK_SECRET;\nconst headers = $input.first().json.headers || {};\nconst bodyObj = $input.first().json.body || {};\nconst rawBody = JSON.stringify(bodyObj);\nconst ts = headers['x-lendloop-timestamp'];\nconst sig = headers['x-lendloop-signature'];\n\nif (!secret || !ts || !sig) {\n  throw new Error('Missing HMAC secret, timestamp, or signature');\n}\n\nconst expected = 'sha256=' + crypto\n  .createHmac('sha256', secret)\n  .update(`${ts}.${rawBody}`)\n  .digest('hex');\n\nif (sig !== expected) {\n  throw new Error('Invalid incoming HMAC signature from Convex');\n}\n\nreturn [{ json: { ...bodyObj, verified: true } }];"
+      },
+      "id": "verify-hmac",
+      "name": "Verify HMAC Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst item = $input.first().json;\nconst secret = $env.LENDLOOP_WEBHOOK_SECRET;\nconst writebackPayload = JSON.stringify({\n  idempotencyKey: `notif:${item.idempotencyKey}`,\n  loanId: item.loanId,\n  workflowType: 'request_notification',\n  eventType: item.eventType,\n  summary: `Notified users for ${item.toolName} (${item.eventType})`\n});\nconst ts = String(Date.now());\nconst sig = 'sha256=' + crypto\n  .createHmac('sha256', secret)\n  .update(`${ts}.${writebackPayload}`)\n  .digest('hex');\n\nreturn [{\n  json: {\n    writebackPayload,\n    ts,\n    sig\n  }\n}];"
+      },
+      "id": "sign-writeback",
+      "name": "Sign Idempotent Writeback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.CONVEX_HTTP_BASE_URL}}/n8n/writeback",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "X-LendLoop-Timestamp", "value": "={{$json.ts}}" },
+            { "name": "X-LendLoop-Signature", "value": "={{$json.sig}}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json.writebackPayload}}",
+        "options": {
+          "retry": {
+            "enabled": true,
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "http-writeback",
+      "name": "Convex Writeback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{ "node": "Verify HMAC Signature", "type": "main", "index": 0 }]]
+    },
+    "Verify HMAC Signature": {
+      "main": [[{ "node": "Sign Idempotent Writeback", "type": "main", "index": 0 }]]
+    },
+    "Sign Idempotent Writeback": {
+      "main": [[{ "node": "Convex Writeback", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
