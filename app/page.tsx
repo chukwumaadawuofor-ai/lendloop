@@ -9,7 +9,7 @@ import {
 } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { ConvexClientProvider } from "../components/ConvexClientProvider";
+import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import { Id } from "../../convex/_generated/dataModel";
 
 type TabKey = "browse" | "my-listings" | "my-requests" | "incoming";
