@@ -1,0 +1,109 @@
+{
+  "name": "LendLoop - Daily Overdue Reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 24 }]
+        }
+      },
+      "id": "schedule-daily",
+      "name": "Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst secret = $env.LENDLOOP_WEBHOOK_SECRET;\nconst ts = String(Date.now());\nconst sig = 'sha256=' + crypto\n  .createHmac('sha256', secret)\n  .update(`${ts}.`)\n  .digest('hex');\nreturn [{ json: { ts, sig } }];"
+      },
+      "id": "sign-get-overdue",
+      "name": "Sign GET Overdue Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.CONVEX_HTTP_BASE_URL}}/overdue-loans",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-LendLoop-Timestamp", "value": "={{$json.ts}}" },
+            { "name": "X-LendLoop-Signature", "value": "={{$json.sig}}" }
+          ]
+        },
+        "options": {
+          "retry": {
+            "enabled": true,
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "fetch-overdue",
+      "name": "Fetch Overdue Loans",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst secret = $env.LENDLOOP_WEBHOOK_SECRET;\nconst data = $input.first().json;\nconst loans = data.loans || [];\nconst todayIso = data.todayIso || new Date().toISOString().slice(0, 10);\n\nreturn loans.map((loan) => {\n  const idempotencyKey = `overdue:${loan.loanId}:${todayIso}`;\n  const writebackPayload = JSON.stringify({\n    idempotencyKey,\n    loanId: loan.loanId,\n    workflowType: 'overdue_reminder',\n    eventType: 'overdue_reminder_sent',\n    summary: `Overdue reminder sent for ${loan.toolName} (due ${loan.endDate})`\n  });\n  const ts = String(Date.now());\n  const sig = 'sha256=' + crypto\n    .createHmac('sha256', secret)\n    .update(`${ts}.${writebackPayload}`)\n    .digest('hex');\n  return { json: { loan, writebackPayload, ts, sig } };\n});"
+      },
+      "id": "prepare-reminders",
+      "name": "Prepare Signed Writebacks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.CONVEX_HTTP_BASE_URL}}/n8n/writeback",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "X-LendLoop-Timestamp", "value": "={{$json.ts}}" },
+            { "name": "X-LendLoop-Signature", "value": "={{$json.sig}}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json.writebackPayload}}",
+        "options": {
+          "retry": {
+            "enabled": true,
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "send-writeback",
+      "name": "Record Reminder Writeback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "Daily Schedule": {
+      "main": [[{ "node": "Sign GET Overdue Request", "type": "main", "index": 0 }]]
+    },
+    "Sign GET Overdue Request": {
+      "main": [[{ "node": "Fetch Overdue Loans", "type": "main", "index": 0 }]]
+    },
+    "Fetch Overdue Loans": {
+      "main": [[{ "node": "Prepare Signed Writebacks", "type": "main", "index": 0 }]]
+    },
+    "Prepare Signed Writebacks": {
+      "main": [[{ "node": "Record Reminder Writeback", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
