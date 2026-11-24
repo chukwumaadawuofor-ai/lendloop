@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import { httpRouter } from "convex/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
@@ -6,28 +5,52 @@ import { httpAction } from "./_generated/server";
 
 const http = httpRouter();
 
-function verifyHmacSignature(
+function timingSafeEqualBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a[i] ^ b[i];
+  }
+  return diff === 0;
+}
+
+async function verifyHmacSignature(
   rawBody: string,
   timestampHeader: string | null,
   signatureHeader: string | null,
   secret: string
-): boolean {
+): Promise<boolean> {
   if (!timestampHeader || !signatureHeader) return false;
   const tsNum = Number(timestampHeader);
   if (!Number.isFinite(tsNum) || Math.abs(Date.now() - tsNum) > 5 * 60 * 1000) {
     return false;
   }
-  const expected =
-    "sha256=" +
-    crypto
-      .createHmac("sha256", secret)
-      .update(`${timestampHeader}.${rawBody}`)
-      .digest("hex");
 
-  const a = Buffer.from(signatureHeader);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
+  const encoder = new TextEncoder();
+  const key = await globalThis.crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const message = `${timestampHeader}.${rawBody}`;
+  const sigBuffer = await globalThis.crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(message)
+  );
+
+  const hex = Array.from(new Uint8Array(sigBuffer))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+
+  const expected = `sha256=${hex}`;
+  return timingSafeEqualBytes(
+    encoder.encode(signatureHeader),
+    encoder.encode(expected)
+  );
 }
 
 http.route({
@@ -40,7 +63,7 @@ http.route({
     }
     const ts = request.headers.get("x-lendloop-timestamp");
     const sig = request.headers.get("x-lendloop-signature");
-    if (!verifyHmacSignature("", ts, sig, secret)) {
+    if (!(await verifyHmacSignature("", ts, sig, secret))) {
       return new Response("Invalid signature", { status: 401 });
     }
 
@@ -67,7 +90,7 @@ http.route({
     const rawBody = await request.text();
     const ts = request.headers.get("x-lendloop-timestamp");
     const sig = request.headers.get("x-lendloop-signature");
-    if (!verifyHmacSignature(rawBody, ts, sig, secret)) {
+    if (!(await verifyHmacSignature(rawBody, ts, sig, secret))) {
       return new Response("Invalid signature", { status: 401 });
     }
 
