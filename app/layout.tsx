@@ -3,9 +3,12 @@ import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LendLoop - Borrow what you need",
-  description: "Neighborhood tool-lending platform",
+  title: "LendLoop",
+  description: "Neighborhood lending platform",
 };
+
+const clerkPublishableKey =
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 export default function RootLayout({
   children,
@@ -13,11 +16,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
+    <ClerkProvider publishableKey={clerkPublishableKey}>
       <html lang="en">
-        <body className="min-h-screen bg-slate-950 text-slate-50 antialiased">
-          {children}
-        </body>
+        <body>{children}</body>
       </html>
     </ClerkProvider>
   );
