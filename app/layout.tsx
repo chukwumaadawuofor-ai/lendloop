@@ -7,8 +7,10 @@ export const metadata: Metadata = {
   description: "Neighborhood lending platform",
 };
 
-const clerkPublishableKey =
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+const publishableKey =
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
+  process.env.CLERK_PUBLISHABLE_KEY ||
+  "pk_test_Y2xlcmsuZXhhbXBsZS5jb20k";
 
 export default function RootLayout({
   children,
@@ -16,7 +18,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider publishableKey={clerkPublishableKey}>
+    <ClerkProvider publishableKey={publishableKey}>
       <html lang="en">
         <body>{children}</body>
       </html>
