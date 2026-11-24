@@ -10,10 +10,10 @@ import {
 export const listPublicAvailableTools = query({
   args: {},
   handler: async (ctx) => {
-    const available = await ctx.db
+    const available = (await ctx.db
       .query("tools")
       .withIndex("by_status", (q) => q.eq("status", "available"))
-      .collect();
+      .collect()) as any[];
 
     return available
       .filter((tool) => !tool.isRemovedByAdmin)
@@ -32,18 +32,18 @@ export const listAuthenticatedTools = query({
   handler: async (ctx, args) => {
     await requireIdentity(ctx);
 
-    const allTools = await ctx.db.query("tools").collect();
+    const allTools = (await ctx.db.query("tools").collect()) as any[];
     const filtered = allTools.filter((tool) => {
       if (tool.isRemovedByAdmin) return false;
       if (args.category && args.category !== "all") {
-        return tool.category.toLowerCase() === args.category.toLowerCase();
+        return String(tool.category ?? "").toLowerCase() === args.category.toLowerCase();
       }
       return true;
     });
 
-    const users = await ctx.db.query("users").collect();
+    const users = (await ctx.db.query("users").collect()) as any[];
     const trustedSet = new Set(
-      users.filter((u) => u.trustedLender).map((u) => u.clerkUserId)
+      users.filter((u) => Boolean(u.trustedLender)).map((u) => u.clerkUserId)
     );
 
     return filtered.map((tool) => ({
@@ -102,11 +102,11 @@ export const createTool = mutation({
       isRemovedByAdmin: false,
       createdAt: now,
       updatedAt: now,
-    });
+    } as any);
 
     await writeAuditLog(ctx, {
       actorUserId: identity.subject,
-      actorRole: actor.role,
+      actorRole: String(actor.role ?? "user"),
       action: "tool.created",
       resourceType: "tools",
       resourceId: String(toolId),
@@ -132,7 +132,7 @@ export const updateOwnTool = mutation({
       name: identity.name,
     });
 
-    const tool = await ctx.db.get(args.toolId);
+    const tool = (await ctx.db.get(args.toolId as any)) as any;
     if (!tool || tool.isRemovedByAdmin) {
       throw new Error("Tool not found.");
     }
@@ -145,17 +145,17 @@ export const updateOwnTool = mutation({
       throw new Error("Cannot edit a tool while it is actively borrowed.");
     }
 
-    await ctx.db.patch(args.toolId, {
+    await ctx.db.patch(args.toolId as any, {
       name: args.name.trim() || tool.name,
       category: args.category.trim().toLowerCase() || tool.category,
       condition: args.condition.trim() || tool.condition,
       description: args.description.trim(),
       updatedAt: Date.now(),
-    });
+    } as any);
 
     await writeAuditLog(ctx, {
       actorUserId: identity.subject,
-      actorRole: actor.role,
+      actorRole: String(actor.role ?? "user"),
       action: "tool.updated",
       resourceType: "tools",
       resourceId: String(args.toolId),
@@ -175,7 +175,7 @@ export const deleteTool = mutation({
       name: identity.name,
     });
 
-    const tool = await ctx.db.get(args.toolId);
+    const tool = (await ctx.db.get(args.toolId as any)) as any;
     if (!tool) {
       throw new Error("Tool not found.");
     }
@@ -192,23 +192,23 @@ export const deleteTool = mutation({
     }
 
     if (isAdmin && !isOwner) {
-      await ctx.db.patch(args.toolId, {
+      await ctx.db.patch(args.toolId as any, {
         isRemovedByAdmin: true,
         status: "available",
         updatedAt: Date.now(),
-      });
+      } as any);
       await writeAuditLog(ctx, {
         actorUserId: identity.subject,
-        actorRole: actor.role,
+        actorRole: String(actor.role ?? "user"),
         action: "admin.tool_removed",
         resourceType: "tools",
         resourceId: String(args.toolId),
       });
     } else {
-      await ctx.db.delete(args.toolId);
+      await ctx.db.delete(args.toolId as any);
       await writeAuditLog(ctx, {
         actorUserId: identity.subject,
-        actorRole: actor.role,
+        actorRole: String(actor.role ?? "user"),
         action: "tool.deleted",
         resourceType: "tools",
         resourceId: String(args.toolId),
@@ -234,26 +234,26 @@ export const setTrustedLender = mutation({
       throw new Error("Forbidden: admin role required to update Trusted Lender status.");
     }
 
-    const target = await ctx.db
+    const target = (await ctx.db
       .query("users")
       .withIndex("by_clerk_user_id", (q) => q.eq("clerkUserId", args.targetUserId))
-      .unique();
+      .unique()) as any;
 
     if (!target) {
       throw new Error("Target user not found.");
     }
 
-    await ctx.db.patch(target._id, {
+    await ctx.db.patch(target._id as any, {
       trustedLender: args.trustedLender,
       updatedAt: Date.now(),
-    });
+    } as any);
 
     await writeAuditLog(ctx, {
       actorUserId: identity.subject,
-      actorRole: actor.role,
+      actorRole: String(actor.role ?? "user"),
       action: "admin.set_trusted_lender",
       resourceType: "users",
-      resourceId: target.clerkUserId,
+      resourceId: String(target.clerkUserId),
     });
   },
 });
