@@ -2,8 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import {
-  SignedIn,
-  SignedOut,
+  Show,
   SignInButton,
   UserButton,
   useAuth,
@@ -116,14 +115,14 @@ function LendLoopBoard() {
         </div>
 
         <div className="flex items-center gap-3">
-          <SignedOut>
+          <Show when="signed-out">
             <SignInButton mode="modal">
               <button className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
                 Sign in to lend or borrow
               </button>
             </SignInButton>
-          </SignedOut>
-          <SignedIn>
+          </Show>
+          <Show when="signed-in">
             {profile && (
               <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-200">
                 Role: {profile.role}
@@ -131,7 +130,7 @@ function LendLoopBoard() {
               </span>
             )}
             <UserButton />
-          </SignedIn>
+          </Show>
         </div>
       </header>
 
@@ -146,7 +145,7 @@ function LendLoopBoard() {
         </div>
       )}
 
-      <SignedOut>
+      <Show when="signed-out">
         <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
           <h2 className="mb-1 text-lg font-semibold text-white">
             Available Neighborhood Tools
@@ -178,9 +177,9 @@ function LendLoopBoard() {
             </div>
           )}
         </section>
-      </SignedOut>
+      </Show>
 
-      <SignedIn>
+      <Show when="signed-in">
         <nav className="mb-6 flex flex-wrap gap-2">
           {(
             [
@@ -485,7 +484,7 @@ function LendLoopBoard() {
             ))}
           </div>
         )}
-      </SignedIn>
+      </Show>
     </div>
   );
 }
