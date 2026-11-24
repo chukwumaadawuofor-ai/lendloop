@@ -48,7 +48,7 @@ export const requestBorrowTool = mutation({
       name: identity.name,
     });
 
-    const tool = await ctx.db.get(args.toolId);
+    const tool = (await ctx.db.get(args.toolId as any)) as any;
     if (!tool || tool.isRemovedByAdmin) {
       throw new Error("Tool not found.");
     }
@@ -77,22 +77,22 @@ export const requestBorrowTool = mutation({
       reminderCount: 0,
       createdAt: now,
       updatedAt: now,
-    });
+    } as any);
 
-    await ctx.db.patch(tool._id, {
+    await ctx.db.patch(tool._id as any, {
       status: "requested",
       updatedAt: now,
-    });
+    } as any);
 
     await writeAuditLog(ctx, {
       actorUserId: identity.subject,
-      actorRole: actor.role,
+      actorRole: String(actor.role ?? "user"),
       action: "loan.requested",
       resourceType: "loans",
       resourceId: String(loanId),
     });
 
-    await ctx.scheduler.runAfter(0, internal.nodeActions.dispatchLoanWebhookToN8n, {
+    await ctx.scheduler.runAfter(0, (internal as any).nodeActions.dispatchLoanWebhookToN8n, {
       loanId: String(loanId),
       toolName: tool.name,
       eventType: "request_created",
@@ -120,7 +120,7 @@ export const respondToLoanRequest = mutation({
       name: identity.name,
     });
 
-    const loan = await ctx.db.get(args.loanId);
+    const loan = (await ctx.db.get(args.loanId as any)) as any;
     if (!loan) {
       throw new Error("Loan request not found.");
     }
@@ -133,30 +133,30 @@ export const respondToLoanRequest = mutation({
       throw new Error("Only pending loan requests can be approved or declined.");
     }
 
-    const tool = await ctx.db.get(loan.toolId);
+    const tool = (await ctx.db.get(loan.toolId as any)) as any;
     const now = Date.now();
 
-    await ctx.db.patch(loan._id, {
+    await ctx.db.patch(loan._id as any, {
       status: args.decision,
       updatedAt: now,
-    });
+    } as any);
 
     if (tool && !tool.isRemovedByAdmin) {
-      await ctx.db.patch(tool._id, {
+      await ctx.db.patch(tool._id as any, {
         status: args.decision === "approved" ? "borrowed" : "available",
         updatedAt: now,
-      });
+      } as any);
     }
 
     await writeAuditLog(ctx, {
       actorUserId: identity.subject,
-      actorRole: actor.role,
+      actorRole: String(actor.role ?? "user"),
       action: `loan.${args.decision}`,
       resourceType: "loans",
       resourceId: String(loan._id),
     });
 
-    await ctx.scheduler.runAfter(0, internal.nodeActions.dispatchLoanWebhookToN8n, {
+    await ctx.scheduler.runAfter(0, (internal as any).nodeActions.dispatchLoanWebhookToN8n, {
       loanId: String(loan._id),
       toolName: loan.toolName,
       eventType: `request_${args.decision}`,
@@ -181,7 +181,7 @@ export const markLoanReturned = mutation({
       name: identity.name,
     });
 
-    const loan = await ctx.db.get(args.loanId);
+    const loan = (await ctx.db.get(args.loanId as any)) as any;
     if (!loan) {
       throw new Error("Loan record not found.");
     }
@@ -197,30 +197,30 @@ export const markLoanReturned = mutation({
       throw new Error("Only approved/active loans can be marked returned.");
     }
 
-    const tool = await ctx.db.get(loan.toolId);
+    const tool = (await ctx.db.get(loan.toolId as any)) as any;
     const now = Date.now();
 
-    await ctx.db.patch(loan._id, {
+    await ctx.db.patch(loan._id as any, {
       status: "returned",
       updatedAt: now,
-    });
+    } as any);
 
     if (tool && !tool.isRemovedByAdmin) {
-      await ctx.db.patch(tool._id, {
+      await ctx.db.patch(tool._id as any, {
         status: "available",
         updatedAt: now,
-      });
+      } as any);
     }
 
     await writeAuditLog(ctx, {
       actorUserId: identity.subject,
-      actorRole: actor.role,
+      actorRole: String(actor.role ?? "user"),
       action: "loan.returned",
       resourceType: "loans",
       resourceId: String(loan._id),
     });
 
-    await ctx.scheduler.runAfter(0, internal.nodeActions.dispatchLoanWebhookToN8n, {
+    await ctx.scheduler.runAfter(0, (internal as any).nodeActions.dispatchLoanWebhookToN8n, {
       loanId: String(loan._id),
       toolName: loan.toolName,
       eventType: "loan_returned",
@@ -236,10 +236,10 @@ export const markLoanReturned = mutation({
 export const getOverdueLoansInternal = internalQuery({
   args: { todayIso: v.string() },
   handler: async (ctx, args) => {
-    const approvedLoans = await ctx.db
+    const approvedLoans = (await ctx.db
       .query("loans")
       .withIndex("by_status_and_end_date", (q) => q.eq("status", "approved"))
-      .collect();
+      .collect()) as any[];
 
     return approvedLoans
       .filter((loan) => loan.endDate < args.todayIso)
@@ -277,7 +277,7 @@ export const recordN8nWritebackInternal = internalMutation({
       return { deduped: true, idempotencyKey: args.idempotencyKey };
     }
 
-    const loan = await ctx.db.get(args.loanId);
+    const loan = (await ctx.db.get(args.loanId as any)) as any;
     if (!loan) {
       throw new Error("Loan not found for write-back.");
     }
@@ -290,22 +290,22 @@ export const recordN8nWritebackInternal = internalMutation({
       eventType: args.eventType,
       summary: args.summary,
       createdAt: now,
-    });
+    } as any);
 
     if (args.workflowType === "overdue_reminder") {
-      await ctx.db.patch(loan._id, {
+      await ctx.db.patch(loan._id as any, {
         lastReminderSentAt: now,
-        reminderCount: loan.reminderCount + 1,
+        reminderCount: Number(loan.reminderCount ?? 0) + 1,
         lastIdempotencyKey: args.idempotencyKey,
         updatedAt: now,
-      });
+      } as any);
     } else {
-      await ctx.db.patch(loan._id, {
+      await ctx.db.patch(loan._id as any, {
         lastNotificationEvent: args.eventType,
         lastNotificationAt: now,
         lastIdempotencyKey: args.idempotencyKey,
         updatedAt: now,
-      });
+      } as any);
     }
 
     return { deduped: false, idempotencyKey: args.idempotencyKey };
