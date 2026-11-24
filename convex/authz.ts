@@ -51,13 +51,13 @@ export async function getOrCreateUserRecord(
   const initialRole: "admin" | "user" = shouldBeAdmin ? "admin" : "user";
   const id = await ctx.db.insert("users", {
     clerkUserId: identity.subject,
-    email: identity.email,
-    name: identity.name,
+    email: identity.email ?? null,
+    name: identity.name ?? null,
     role: initialRole,
     trustedLender: false,
     createdAt: now,
     updatedAt: now,
-  });
+  } as any);
 
   const created = await ctx.db.get(id);
   if (!created) {
