@@ -144,7 +144,7 @@ function LendLoopBoard() {
             </p>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-              {publicTools.map((tool) => (
+              {publicTools.map((tool: any) => (
                 <div
                   key={tool._id}
                   className="rounded-lg border border-slate-800 bg-slate-950 p-4"
@@ -248,7 +248,7 @@ function LendLoopBoard() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                {(authTools || []).map((tool) => {
+                {(authTools || []).map((tool: any) => {
                   const isOwner = profile?.clerkUserId === tool.ownerUserId;
                   const isAdmin = profile?.role === "admin";
                   const dates = borrowDates[String(tool._id)] || {
@@ -362,8 +362,8 @@ function LendLoopBoard() {
         {tab === "my-listings" && (
           <div className="grid gap-4 sm:grid-cols-2">
             {(authTools || [])
-              .filter((t) => t.ownerUserId === profile?.clerkUserId)
-              .map((tool) => (
+              .filter((t: any) => t.ownerUserId === profile?.clerkUserId)
+              .map((tool: any) => (
                 <div
                   key={tool._id}
                   className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"
@@ -379,7 +379,7 @@ function LendLoopBoard() {
 
         {tab === "my-requests" && (
           <div className="space-y-3">
-            {(loansBundle?.borrowerLoans || []).map((loan) => (
+            {(loansBundle?.borrowerLoans || []).map((loan: any) => (
               <div
                 key={loan._id}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4"
@@ -412,7 +412,7 @@ function LendLoopBoard() {
 
         {tab === "incoming" && (
           <div className="space-y-3">
-            {(loansBundle?.incomingRequests || []).map((loan) => (
+            {(loansBundle?.incomingRequests || []).map((loan: any) => (
               <div
                 key={loan._id}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4"
