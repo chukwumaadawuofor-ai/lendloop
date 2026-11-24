@@ -38,7 +38,7 @@ export async function getOrCreateUserRecord(
       (identity.email && existing.email !== identity.email) ||
       (identity.name && existing.name !== identity.name)
     ) {
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch(existing._id as any, {
         role: nextRole,
         email: identity.email ?? existing.email,
         name: identity.name ?? existing.name,
