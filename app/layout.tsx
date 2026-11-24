@@ -9,8 +9,7 @@ export const metadata: Metadata = {
 
 const publishableKey =
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
-  process.env.CLERK_PUBLISHABLE_KEY ||
-  "pk_test_Y2xlcmsuZXhhbXBsZS5jb20k";
+  process.env.CLERK_PUBLISHABLE_KEY;
 
 export default function RootLayout({
   children,
