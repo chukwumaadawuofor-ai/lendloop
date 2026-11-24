@@ -57,6 +57,12 @@ function LendLoopBoard() {
     []
   );
 
+  function switchTab(nextTab: TabKey) {
+    setStatusMsg(null);
+    setErrorMsg(null);
+    setTab(nextTab);
+  }
+
   async function handleCreateTool(e: FormEvent) {
     e.preventDefault();
     setErrorMsg(null);
@@ -117,7 +123,10 @@ function LendLoopBoard() {
         <div className="flex items-center gap-3">
           <Show when="signed-out">
             <SignInButton mode="modal">
-              <button className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
+              <button
+                type="button"
+                className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
+              >
                 Sign in to lend or borrow
               </button>
             </SignInButton>
@@ -191,7 +200,8 @@ function LendLoopBoard() {
           ).map(([key, label]) => (
             <button
               key={key}
-              onClick={() => setTab(key)}
+              type="button"
+              onClick={() => switchTab(key)}
               className={`rounded-lg px-3.5 py-2 text-sm font-medium ${
                 tab === key
                   ? "bg-emerald-500 text-slate-950"
@@ -254,6 +264,7 @@ function LendLoopBoard() {
                 {categories.map((cat) => (
                   <button
                     key={cat}
+                    type="button"
                     onClick={() => setCategoryFilter(cat)}
                     className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${
                       categoryFilter === cat
@@ -336,6 +347,7 @@ function LendLoopBoard() {
                               />
                             </div>
                             <button
+                              type="button"
                               onClick={() => handleRequestBorrow(tool._id)}
                               className="w-full rounded-lg bg-emerald-500/90 py-1.5 text-xs font-semibold text-slate-950 hover:bg-emerald-400"
                             >
@@ -347,6 +359,7 @@ function LendLoopBoard() {
                         <div className="flex flex-wrap gap-2">
                           {(isOwner || isAdmin) && (
                             <button
+                              type="button"
                               onClick={() => deleteTool({ toolId: tool._id })}
                               className="rounded bg-rose-950 px-2.5 py-1 text-xs text-rose-200 hover:bg-rose-900"
                             >
@@ -357,6 +370,7 @@ function LendLoopBoard() {
                           )}
                           {isAdmin && !tool.isTrustedLender && (
                             <button
+                              type="button"
                               onClick={() =>
                                 setTrustedLender({
                                   targetUserId: tool.ownerUserId,
@@ -418,6 +432,7 @@ function LendLoopBoard() {
                 </div>
                 {loan.status === "approved" && (
                   <button
+                    type="button"
                     onClick={() => markLoanReturned({ loanId: loan._id })}
                     className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-950"
                   >
@@ -448,6 +463,7 @@ function LendLoopBoard() {
                   {loan.status === "pending" && (
                     <>
                       <button
+                        type="button"
                         onClick={() =>
                           respondToLoanRequest({
                             loanId: loan._id,
@@ -459,6 +475,7 @@ function LendLoopBoard() {
                         Approve
                       </button>
                       <button
+                        type="button"
                         onClick={() =>
                           respondToLoanRequest({
                             loanId: loan._id,
@@ -473,6 +490,7 @@ function LendLoopBoard() {
                   )}
                   {loan.status === "approved" && (
                     <button
+                      type="button"
                       onClick={() => markLoanReturned({ loanId: loan._id })}
                       className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white"
                     >
