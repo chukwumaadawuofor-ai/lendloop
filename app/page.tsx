@@ -6,6 +6,7 @@ import {
   SignedOut,
   SignInButton,
   UserButton,
+  useAuth,
 } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -15,6 +16,8 @@ import { Id } from "@/convex/_generated/dataModel";
 type TabKey = "browse" | "my-listings" | "my-requests" | "incoming";
 
 function LendLoopBoard() {
+  const { isSignedIn } = useAuth();
+
   const [tab, setTab] = useState<TabKey>("browse");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
@@ -30,11 +33,18 @@ function LendLoopBoard() {
   >({});
 
   const publicTools = useQuery(api.tools.listPublicAvailableTools);
-  const profile = useQuery(api.tools.getCurrentUserProfile);
-  const authTools = useQuery(api.tools.listAuthenticatedTools, {
-    category: categoryFilter,
-  });
-  const loansBundle = useQuery(api.loans.listMyLoansAndRequests);
+  const profile = useQuery(
+    api.tools.getCurrentUserProfile,
+    isSignedIn ? {} : "skip"
+  );
+  const authTools = useQuery(
+    api.tools.listAuthenticatedTools,
+    isSignedIn ? { category: categoryFilter } : "skip"
+  );
+  const loansBundle = useQuery(
+    api.loans.listMyLoansAndRequests,
+    isSignedIn ? {} : "skip"
+  );
 
   const createTool = useMutation(api.tools.createTool);
   const deleteTool = useMutation(api.tools.deleteTool);
@@ -52,8 +62,18 @@ function LendLoopBoard() {
     e.preventDefault();
     setErrorMsg(null);
     setStatusMsg(null);
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setErrorMsg("Please enter a tool name.");
+      return;
+    }
     try {
-      await createTool({ name, category, condition, description });
+      await createTool({
+        name: trimmedName,
+        category,
+        condition: condition.trim() || "Good",
+        description: description.trim(),
+      });
       setName("");
       setDescription("");
       setStatusMsg("Tool listed on LendLoop.");
